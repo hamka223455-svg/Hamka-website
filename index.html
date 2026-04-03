@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spaceman Trading Demo</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+            color: white;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 {
+            font-size: 2.5em;
+            background: linear-gradient(45deg, #00ff88, #00ccff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .stat-card {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+            min-width: 150px;
+        }
+        .stat-value { font-size: 2em; font-weight: bold; color: #00ff88; }
+        .stat-label { font-size: 0.9em; opacity: 0.8; }
+        .game-area { display: grid; grid-template-columns: 1fr 400px; gap: 30px; margin-bottom: 30px; }
+        .chart-container {
+            background: rgba(0,0,0,0.3);
+            border-radius: 20px;
+            padding: 20px;
+            height: 500px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .controls { display: flex; flex-direction: column; gap: 20px; }
+        .balance-card {
+            background: rgba(255,255,255,0.1);
+            padding: 25px;
+            border-radius: 20px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .balance { font-size: 2.5em; font-weight: bold; color: #00ff88; margin-bottom: 10px; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 8px; font-weight: 500; }
+        input {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 1.2em;
+            text-align: center;
+        }
+        input::placeholder { color: rgba(255,255,255,0.5); }
+        .btn {
+            width: 100%;
+            padding: 18px;
+            border: none;
+            border-radius: 15px;
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            backdrop-filter: blur(10px);
+        }
+        .btn-beli {
+            background: linear-gradient(45deg, #00ff88, #00cc66);
+            color: black;
+            margin-bottom: 15px;
+        }
+        .btn-beli:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,255,136,0.4);
+        }
+        .btn-jual {
+            background: linear-gradient(45deg, #ff6b6b, #ff5252);
+            color: white;
+        }
+        .btn-jual:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(255,107,107,0.4);
+        }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+        .multiplier {
+            font-size: 3em;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .multiplier.waiting { color: #666; font-size: 2.5em; }
+        .multiplier.positive { color: #00ff88; text-shadow: 0 0 20px #00ff88; }
+        .multiplier.negative { color: #ff6b6b; text-shadow: 0 0 20px #ff6b6b; }
+        .status {
+            text-align: center;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        .status.waiting { background: rgba(255,255,255,0.1); }
+        .status.active {
+            background: rgba(0,255,136,0.2);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(0,255,136,0.7); }
+            70% { box-shadow: 0 0 0 20px rgba(0,255,136,0); }
+            100% { box-shadow: 0 0 0 0 rgba(0,255,136,0); }
+        }
+        .history {
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
+            padding: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        @media (max-width: 768px) {
+            .game-area { grid-template-columns: 1fr; }
+            .header h1 { font-size: 2em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 TRADING HAMKA</h1>
+            <p>MAIN DAN MENANGKAN SEBANYAK BANYAK NYA</p>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value" id="winRate">100%</div>
+                <div class="stat-label">Win Rate</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="maxMultiplier">1.00x</div>
+                <div class="stat-label">Max Multiplier</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalProfit">Rp0</div>
+                <div class="stat-label">Total Profit</div>
+            </div>
+        </div>
+
+        <div class="game-area">
+            <div class="chart-container">
+                <canvas id="multiplierChart"></canvas>
+            </div>
+
+            <div class="controls">
+                <div class="balance-card">
+                    <div class="balance" id="balance">Rp10.000.000</div>
+                    <div style="font-size: 1.1em; opacity: 0.8;">Saldo Anda</div>
+                </div>
+
+                <div class="status waiting" id="status">BELI dulu untuk mulai trading!</div>
+
+                <div class="multiplier waiting" id="currentMultiplier">0.00x</div>
+
+                <div class="input-group">
+                    <label>Beli (Rp):</label>
+                    <input type="text" id="betAmount" placeholder="Sesuka hati...">
+                </div>
+
+                <button class="btn btn-beli" id="buyBtn">🚀 BELI & Mulai</button>
+                <button class="btn btn-jual" id="sellBtn" disabled>JUAL & Ambil Profit</button>
+
+                <div class="history">
+                    <h3 style="margin-bottom: 15px;">Riwayat Trading</h3>
+                    <div id="historyList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class SpacemanGame {
+            constructor() {
+                this.balance = 5000;
+                this.currentBet = 0;
+                this.currentMultiplier = 0;
+                this.isGameActive = false;
+                this.isBetPlaced = false;
+                this.gameHistory = [];
+                this.wins = 0;
+                this.totalGames = 0;
+                this.chart = null;
+                this.chartData = [];
+                this.gameInterval = null;
+                this.init();
+            }
+
+            init() {
+                this.setupChart();
+                this.updateUI();
+                this.setupEventListeners();
+            }
+
+            setupChart() {
+                const ctx = document.getElementById('multiplierChart').getContext('2d');
+                this.chart = new Chart(ctx, {
+                    type: 'line',
+                    data: { labels: [], datasets: [{ label: 'Multiplier', data: [0], borderColor: '#00ff88', backgroundColor: 'rgba(0,255,136,0.1)', borderWidth: 3, fill: true, tension: 0.4 }] },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: { 
+                            y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: 'white' } }, 
+                            x: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: 'white' } } 
+                        },
+                        plugins: { legend: { display: false } },
+                        animation: { duration: 1000 }
+                    }
+                });
+            }
+
+            setupEventListeners() {
+                document.getElementById('buyBtn').addEventListener('click', () => this.placeBet());
+                document.getElementById('sellBtn').addEventListener('click', () => this.cashOut());
+                
+                document.getElementById('betAmount').addEventListener('input', (e) => {
+                    // HANYA ANGKA, TITIK AUTO FORMAT
+                    let value = e.target.value.replace(/[^\d]/g, '');
+                    if (value) {
+                        e.target.value = value.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                    }
+                });
+            }
+
+            placeBet() {
+                let betStr = document.getElementById('betAmount').value.replace(/[^\d]/g, '');
+                let betAmount = parseFloat(betStr) || 0;
+                
+                // **SESUKA HATI - HANYA CEK > 0 DAN <= SALDO**
+                if (betAmount <= 0 || betAmount > this.balance) {
+                    alert('Bet harus lebih dari 0 dan tidak boleh lebih dari saldo!');
+                    return;
+                }
+
+                this.currentBet = betAmount;
+                this.balance -= betAmount;
+                this.isBetPlaced = true;
+                this.currentMultiplier = 1.00;
+                this.chartData = [1.00];
+                this.startGameLoop();
+                
+                document.getElementById('buyBtn').disabled = true;
+                document.getElementById('sellBtn').disabled = false;
+                document.getElementById('status').textContent = 'Game Aktif! Jual kapan saja!';
+                document.getElementById('status').className = 'status active';
+                document.getElementById('currentMultiplier').className = 'multiplier positive';
+                
+                this.updateUI();
+                this.updateChart();
+            }
+
+            startGameLoop() {
+                this.isGameActive = true;
+                this.gameInterval = setInterval(() => {
+                    if (this.isGameActive && this.isBetPlaced) this.updateMultiplier();
+                }, 500);
+            }
+
+            updateMultiplier() {
+                const rand = Math.random();
+                if (rand < 0.50) {
+                    const decreases = [0.01, 0.015, 0.02, 0.025, 0.03];
+                    this.currentMultiplier -= decreases[Math.floor(Math.random() * decreases.length)];
+                } else if (rand < 0.90) {
+                    const increases = [0.03, 0.04, 0.05, 0.06];
+                    this.currentMultiplier += increases[Math.floor(Math.random() * increases.length)];
+                } else {
+                    this.currentMultiplier += 0.60;
+                }
+                if (this.currentMultiplier < 0.01) this.currentMultiplier = 0.01;
+                this.updateUI();
+                this.updateChart();
+            }
+
+            cashOut() {
+                if (!this.isBetPlaced) return;
+                const profit = this.currentBet * this.currentMultiplier;
+                this.balance += profit;
+                if (this.currentMultiplier >= 1) this.wins++;
+                this.totalGames++;
+                this.gameHistory.unshift({
+                    multiplier: this.currentMultiplier.toFixed(2),
+                    profit: profit,
+                    timestamp: new Date().toLocaleTimeString(),
+                    isWin: this.currentMultiplier >= 1
+                });
+                this.stopGame();
+                this.updateUI();
+                this.updateHistory();
+            }
+
+            stopGame() {
+                this.isGameActive = false;
+                this.isBetPlaced = false;
+                this.currentBet = 0;
+                if (this.gameInterval) clearInterval(this.gameInterval);
+                document.getElementById('buyBtn').disabled = false;
+                document.getElementById('sellBtn').disabled = true;
+                document.getElementById('status').textContent = 'BELI dulu untuk mulai trading!';
+                document.getElementById('status').className = 'status waiting';
+                document.getElementById('currentMultiplier').textContent = '0.00x';
+                document.getElementById('currentMultiplier').className = 'multiplier waiting';
+                document.getElementById('betAmount').value = '';
+            }
+
+            updateChart() {
+                this.chartData.push(this.currentMultiplier);
+                if (this.chartData.length > 40) this.chartData.shift();
+                this.chart.data.labels = Array.from({length: this.chartData.length}, (_, i) => '');
+                this.chart.data.datasets[0].data = this.chartData;
+                this.chart.update('none');
+            }
+
+            formatMultiplier(m) {
+                if (m >= 100) return '+' + Math.round(m) + '.00x';
+                else if (m >= 10) return '+' + m.toFixed(2) + 'x';
+                else if (m >= 1) return '+' + m.toFixed(2) + 'x';
+                else return '-' + Math.abs(m).toFixed(2) + 'x';
+            }
+
+            formatNumber(num) {
+                return Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            }
+
+            updateUI() {
+                document.getElementById('balance').textContent = 'Rp' + this.formatNumber(this.balance);
+                
+                if (this.isBetPlaced) {
+                    document.getElementById('currentMultiplier').textContent = this.formatMultiplier(this.currentMultiplier);
+                    document.getElementById('currentMultiplier').className = 'multiplier ' + (this.currentMultiplier >= 1 ? 'positive' : 'negative');
+                }
+
+                const winRate = this.totalGames > 0 ? Math.round((this.wins / this.totalGames) * 100) : 0;
+                document.getElementById('winRate').textContent = winRate + '%';
+                document.getElementById('maxMultiplier').textContent = Math.max(...this.gameHistory.map(h => parseFloat(h.multiplier)), 1).toFixed(2) + 'x';
+                document.getElementById('totalProfit').textContent = 'Rp' + this.formatNumber(this.balance - 10000000);
+            }
+
+            updateHistory() {
+                document.getElementById('historyList').innerHTML = this.gameHistory.slice(0, 10).map(item => `
+                    <div class="history-item">
+                        <span>${item.multiplier}x</span>
+                        <span style="color: ${item.isWin ? '#00ff88' : '#ff6b6b'}">Rp${this.formatNumber(item.profit)}</span>
+                    </div>
+                `).join('');
+            }
+        }
+
+        const game = new SpacemanGame();
+    </script>
+</body>
+                  </html>
